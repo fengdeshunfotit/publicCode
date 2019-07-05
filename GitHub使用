@@ -1,1 +1,4 @@
 1.建议下载客户端进行项目下载与项目的上传
+1.1在idea中打开相关的目录，新增或者修改相关的文件
+1.2使用idea中的git进行commit操作，push不出意外会报错
+1.3使用GitHub Desktop 在导航栏中Repository中选择push进行提交相关的代码
