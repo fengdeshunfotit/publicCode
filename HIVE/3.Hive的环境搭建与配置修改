@@ -1,0 +1,48 @@
+环境搭建与配置
+1.下载2.3.5版本：https://mirrors.tuna.tsinghua.edu.cn/apache/hive/hive-2.3.5/
+2.修改配置文件
+启动hadoop，mysql
+(创建HIVE的文件存储位置)mkdir /home/hadoop/data/warehouse，mkdir /home/hadoop/data/hive
+(hadoop创建相关的目录)
+$HADOOP_HOME/bin/hadoop fs -mkdir -p /home/hadoop/data/warehouse
+$HADOOP_HOME/bin/hadoop fs -mkdir -p  /home/hadoop/data/hive
+(赋予读写权限）
+$HADOOP_HOME/bin/hadoop fs -chmod 777 /home/hadoop/data/warehouse
+$HADOOP_HOME/bin/hadoop fs -chmod 777 /home/hadoop/data/hive
+(访问检测文件是否创建成功）
+http://192.168.126.129:50070/explorer.html#/
+(备份修改文件名称)cp hive-default.xml.template /home/hadoop/app/apache-hive-2.3.5-bin/conf/hive-site.xml
+(备份修改文件名称)cp hive-env.sh.template /home/hadoop/app/apache-hive-2.3.5-bin/conf/hive-env.sh
+(修改配置文件内容)vim hive-site.xml（详细见配置）
+
+切记，新增相关的配置时，请查看原来的配置中是否存在相关的配置（如果配置设置重复，会导致各种报错）
+
+如果不配置mysql就会出现多个窗口打开时报错：
+Derby引擎的缺点：
+    一次只能打开一个会话
+(修改配置文件内容)vim hive-env.sh（详细见配置）
+
+注意：如果配置上了mysql的相关配置，需要
+将mysql 的驱动包 上传到 $HIVE_HOME/lib中
+-----------------------------------------------------------------------
+为什么要配置Mysql？
+
+Exception in thread "main" java.lang.RuntimeException: java.lang.RuntimeException: Unable to instantiate org.apache.hadoop.hive.ql.metadata.SessionHiveMetaStoreClient
+1.metastore（元数据）是hive元数据的集中存放地
+2.metastore（元数据）默认使用内嵌的derby数据库作为存储引擎
+3.Derby引擎的缺点：一次只能打开一个会话、同一时间只能有一个Hive实例访问。多个访问会报错
+4.你在哪路径下，执行hive指令，就在哪路径下生成metastore_db目录。
+5.使用Mysql作为外置存储引擎，多用户同时访问，将存储数据独立出来在多个服务示例之间共享
+
+-----------------------------------------------------------------------
+参数配置的三种方式：
+1、配置文件方式
+	默认配置文件：hive-default.xml
+	用户自定义配置文件：hive-site.xml
+ 注意：用户自定义配置会覆盖默认配置。另外，Hive 也会读入 Hadoop 的配置，因为 Hive 是作为 Hadoop 的客户端启动的，Hive 的配置会覆盖 Hadoop 的配置。配置文件的设定对本机启动的所有 Hive 进程都有效。
+2、命令行参数方式 （仅对本次 hive 启动有效 ）
+	启动 Hive 时，可以在命令行添加-hiveconf param=value 来设定参数
+ 	bin/hive -hiveconf mapred.reduce.tasks=10; （设定10个map去执行当前的查询请求）
+3、参数声明方式 （可以在 HQL 中使用 SET 关键字设定参数 ，：仅对本次hive启动有效 ）
+	set mapred.reduce.tasks=10;
+	select * from xxxx

@@ -1,0 +1,102 @@
+启动与相关的操作
+1.初始化：schematool  -initSchema -dbType mysql
+2.启动：$HIVE_HOME/bin hive（单纯的启动）
+./hive -hiveconf hive.root.logger=DEBUG,console（看相关日志）
+./hive -e  “HQL”(不进入hive交互界面 执行相关的HQL)
+./hive -f  “/x/x/x/x.sql”(执行执行的sql文件脚本)
+./hive –service hiveserver2 &（hive 远程服务 (端口号10000) 启动方式 （Thrift服务），&表示后台运行）
+web界面的启动模式（略）
+
+3.退出：exit、quit
+老版本中：exit:先隐性提交数据，再退出； quit:不提交数据，退出；
+
+注意：
+①：3.1.1版本hive-default.xml.template内有坑，$#8；会导致报错，替换成空格 就好了。2.3.5版本没有异常字符
+[Fatal Error] hive-site.xml:3251:97: Character reference "&#8" is an invalid XML character.
+大概在：3210位置
+②：启动HIVE之后输入相关的HQL，报错
+第一查看是否有权限访问mysql数据
+第二查看是否在lib中添加了相关的mysql驱动
+第三查看配置是否有重复
+-----------------------------------------------------------------------
+
+基本操作略
+
+-----------------------------------------------------------------------
+内部表、分区表 、分桶表（略）
+内部表特点：因为表是外部表，所有 Hive 并非认为其完全拥有这份数据。删除该表并不会删除掉这份数据，不过描述表的元数据信息会被删除掉
+比如：
+每天将收集到的网站日志定期流入 HDFS 文本文件。在外部表（原始日志表）的基础上做大量的统计分析，用到的中间表、结果表使用内部表存储，数据通过 SELECT+INSERT（查询添加）进入内部表
+分区表：
+分区表实际上就是对应一个 HDFS 文件系统上的独立的文件夹，该文件夹下是该分区所有的数据文件。Hive 中的分区就是分目录，把一个大的数据集根据业务需要分割成小的数据集。在查询时通过 WHERE 子句中的表达式选择查询所需要的指定的分区，这样的查询效率会提高很多
+二级分区表：（万方分析）
+类似于：以日为目录，目录下存储多个文件数据
+
+-----------------------------------------------------------------------
+
+数据的导入
+1. 向表中装载数据（Load）
+如：
+创建一张表
+create table student_test20190703(name string, sex string,old string) row format delimited fields terminated by ' ';
+查询表
+show tables;
+☆：加载本地数据到表中（外部导入的文件，注意编码格式否则乱码）
+load data local inpath '/home/hadoop/data/testdata/student.txt' into table student_test20190703;
+☆：加载hdfs上的数据导hive中
+创建目录：$HADOOP_HOME/bin/hadoop fs -mkdir -p /20190703/hive
+上传文件到hdfs：hive>: dfs -put /home/hadoop/data/testdata/student.txt /20190703/hive
+加载hdfs上的数据：hive>:load data inpath '/20190703/hive/student.txt' into table student_test20190703;
+☆：加载数据覆盖表中已有的数据
+load data inpath '/20190703/hive/student.txt' overwrite into table student_test20190703
+数据的导入
+2. 通过查询语句向表中插入数据（Insert）
+3.查询语句中创建表并加载数据（As Select）
+create table if not exists student3 as select name,sex,old from student;
+4. 创建表时通过 Location 指定加载数据路径
+ create table if not exists student_20190703_1(name string,sex string,old string) row format delimited fields terminated by ' ' location '/20190703/hive';
+加载htfs数据，即可查询到相关的数据
+ dfs -put /home/hadoop/data/testdata/student2.txt /20190703/hive;
+查询相关的数据
+select * from student_20190703_1;
+
+等等操作方式
+-----------------------------------------------------------------------
+数据的导出
+ Insert 导出 ：查询结果导出到本地，查询结果导出到HDFS
+ 	insert overwrite local directory '/datas/export/student'  select * from student;
+ 	insert overwrite directory '/datas/export/student2'  ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+COLLECTION ITEMS TERMINATED BY '\n' select * from student; （指定格式导出）
+ Hadoop 命令导出到本地
+	dfs -get /user/hive/warehouse/student/month=201709/000000_0  /datas/export/student3.txt;
+ Hive Shell 命令导出
+	bin/hive -e 'select * from default.student;' > /datas/export/student4.txt;
+ Export 导出到 HDFS 上
+ 	export table default.student to '/datas/export/student';
+ Sqoop 导出 （开源框架 略）
+
+-----------------------------------------------------------------------
+自定义函数：
+（1）UDF（User-Defined-Function）
+（2）UDAF（User-Defined Aggregation Function）(略)
+（3）UDTF（User-Defined Table-Generating Functions）（略）
+注意事项
+ （1）UDF 必须要有返回类型，可以返回 null，但是返回类型不能为 void；
+编程步骤：
+ （1）继承 org.apache.hadoop.hive.ql.UDF
+ （2）需要实现 evaluate 函数；evaluate 函数支持重载；
+ （3）在 hive 的命令行窗口创建函数
+  	a）添加 jar （将 jar 包添加到 hive 的 classpath ）
+   		add jar linux_jar_path
+		add jar /home/hadoop/app/jar/LowerProject-1.0-SNAPSHOT.jar;
+		查看传入的jar：list jars;
+  	b）创建 function（创建临时函数与开发好的 java class 关联 ）
+   		create [temporary] function [dbname.]function_name AS class_name;
+		create temporary function hive_hello as 'demo.LowerUDF';
+		show functions;
+
+	c)调用相关的函数使用即可
+ （4）在 hive 的命令行窗口删除函数
+  Drop [temporary] function [if exists] [dbname.]function_name;
+ Drop temporary function hive_hello;
+
