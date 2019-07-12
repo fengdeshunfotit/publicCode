@@ -25,6 +25,7 @@ import org.apache.log4j.Logger;
  <value>*</value>
  </property>
 
+
  */
 public class JavaHiveJDBC {
     private static String sql = "";
